@@ -1,10 +1,8 @@
 #pragma once
+#include "util/Interface.hpp"
 class Application;
-class IModule {
+class IModule : public Interface {
 public:
-  virtual ~IModule() = default;
-
-  virtual void setup(Application *app) = 0;
-
+  virtual void setup(Application *) = 0;
   virtual void cleanup() = 0;
 };

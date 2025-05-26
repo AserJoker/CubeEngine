@@ -1,32 +1,32 @@
 #pragma once
 #include "util/ProxyTask.hpp"
 #include "util/Singleton.hpp"
+#include <functional>
 #include <memory>
+template <class... Args> class System : public ProxyTask {
+private:
+  template <class T> std::unique_ptr<T> &inject() {
+    return Singleton<T>::get();
+  }
+  template <class T>
+    requires requires(T t) { T::template inject<T>(); }
+  std::unique_ptr<T> &inject() {
+    return T::template inject<T>();
+  }
+  auto autoInject(const std::function<void(std::unique_ptr<Args> &...)> &fn) {
+    return [fn, this]() -> bool {
+      fn(inject<Args>()...);
+      return true;
+    };
+  }
 
-class System : public ProxyTask {
+  auto autoInject(const std::function<bool(std::unique_ptr<Args> &...)> &fn) {
+    return [fn, this]() -> bool { return fn(inject<Args>()...); };
+  }
+
 public:
-  template <typename Arg>
-    requires requires(Arg arg) { Arg::template inject<Arg>(); }
-  static std::unique_ptr<Arg> &inject() {
-    return Arg::template inject<Arg>();
-  }
-
-  template <class Arg> static std::unique_ptr<Arg> &inject() {
-    return Singleton<Arg>::get();
-  }
-
-protected:
-  template <class Fn, class... Args> auto autoInject(Fn func) {
-    return std::function(
-        [this, func]() -> auto { return func(this->inject<Args>()...); });
-  }
-
-public:
-  template <class Ret, class... Args>
-  System(const std::function<Ret(std::unique_ptr<Args> &...)> &func)
-      : ProxyTask(autoInject<decltype(func), Args...>(func)) {}
-  
-  template <class Ret, class... Args>
-  System(Ret (*func)(std::unique_ptr<Args> &...))
-      : ProxyTask(autoInject<decltype(func), Args...>(func)) {}
+  System(const std::function<void(std::unique_ptr<Args> &...)> &fn)
+      : ProxyTask(autoInject(fn)) {}
+  System(const std::function<bool(std::unique_ptr<Args> &...)> &fn)
+      : ProxyTask(autoInject(fn)) {}
 };

@@ -1,17 +1,11 @@
 #include "runtime/Application.hpp"
-#include "util/Task.hpp"
-int32_t Application::run(int argc, char *argv[]) {
-  for (int idx = 0; idx < argc; idx++) {
-    _args.push_back(argv[idx]);
+#include "util/Singleton.hpp"
+#include "util/TaskRunner.hpp"
+int Application::run(int argc, char *argv[]) {
+  for (int i = 0; i < argc; i++) {
+    _args.push_back(argv[i]);
   }
-  for (auto &m : _modules) {
-    m->setup(this);
-  }
-  Task::runTask();
-  for (auto &m : _modules) {
-    m->cleanup();
-  }
+  auto &runner = Singleton<TaskRunner>::get();
+  runner->runTaskLoop();
   return 0;
 }
-
-const std::vector<std::string> &Application::getArgs() const { return _args; }

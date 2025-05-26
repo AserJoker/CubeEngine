@@ -1,41 +1,29 @@
 #pragma once
 #include "runtime/IModule.hpp"
 #include "runtime/System.hpp"
-#include "util/Generator.hpp"
-#include <memory>
+#include "util/Singleton.hpp"
+#include "util/TaskRunner.hpp"
+#include <map>
 #include <string>
 #include <vector>
 class Application {
 private:
   std::vector<std::string> _args;
-  std::vector<IModule *> _modules;
+  std::map<std::string, IModule *> _modules;
 
 public:
-  template <class Ret, class... Args>
-  Application *addSystem(Ret (*func)(std::unique_ptr<Args> &...)) {
-    Task::addTask(new System(func));
+  auto addSystem(auto &&fn) {
+    auto &runner = Singleton<TaskRunner>::get();
+    runner->addTask(new System(std::function(fn)));
     return this;
   }
 
-  template <class Ret, class... Args>
-  Application *
-  addSystem(const std::function<Ret(std::unique_ptr<Args> &...)> &func) {
-    Task::addTask(new System(func));
+  template <class T> auto addModule(T *module) {
+    _modules.insert(typeid(T).name(), module);
     return this;
   }
 
-  template <class... Args>
-  Application *addSystem(Generator<Void> (*func)(Args...)) {
-    func(System::inject<Args>()...);
-    return this;
-  }
+  int run(int argc, char *argv[]);
 
-  template <class Module> Application *addModule() {
-    _modules.push_back(Singleton<Module>::get().get());
-    return this;
-  }
-
-  int32_t run(int argc, char *argv[]);
-
-  const std::vector<std::string> &getArgs() const;
+  inline const std::vector<std::string> &getArgs() const { return _args; };
 };

@@ -1,42 +1,60 @@
 #pragma once
+#include "util/ITask.hpp"
 #include "util/PromiseType.hpp"
-#include "util/Task.hpp"
-#include <exception>
+#include <coroutine>
 #include <future>
-#include <iostream>
-#include <ostream>
-template <class T> struct CoTask : public Task {
-  std::shared_ptr<std::promise<T>> promise;
-  std::coroutine_handle<PromiseType<T>> handle;
+template <class T> class CoTask : public ITask {
+private:
+  std::coroutine_handle<PromiseType<T>> _handle;
+  std::promise<T> _promise;
+
+public:
+  CoTask(const std::coroutine_handle<PromiseType<T>> &handle)
+      : _handle(handle) {}
   bool next() {
-    if (handle.done()) {
+    if (_handle.done()) {
       return true;
     }
-    handle.resume();
-    if (handle.done()) {
-      if (handle.promise().exception) {
-        promise->set_exception(handle.promise().exception);
+    _handle.resume();
+    if (_handle.done()) {
+      if (_handle.promise().exception) {
+        _promise.set_exception(_handle.promise().exception);
       } else {
-        promise->set_value(handle.promise().value);
+        _promise.set_value(_handle.promise().value);
       }
-      return true;
     }
     return false;
   }
-  
-  void destroy() {
-    if (handle) {
-      handle.destroy();
-      handle = nullptr;
-      try {
-        promise->get_futrue().get();
-      } catch (std::exception &e) {
-        std::println(std::cerr, "Uncaught exception: {}", e.what());
+
+  void destroy() { _handle.destroy(); }
+
+  std::future<T> future() { return _promise.get_future(); }
+};
+
+template <> class CoTask<void> : public ITask {
+private:
+  std::coroutine_handle<PromiseType<void>> _handle;
+  std::promise<void> _promise;
+
+public:
+  CoTask(const std::coroutine_handle<PromiseType<void>> &handle)
+      : _handle(handle) {}
+  bool next() {
+    if (_handle.done()) {
+      return true;
+    }
+    _handle.resume();
+    if (_handle.done()) {
+      if (_handle.promise().exception) {
+        _promise.set_exception(_handle.promise().exception);
+      } else {
+        _promise.set_value();
       }
     }
+    return false;
   }
 
-  CoTask(const std::coroutine_handle<PromiseType<T>> &handle,
-         const std::shared_ptr<std::promise<T>> &promise)
-      : handle(handle), promise(promise) {}
+  void destroy() { _handle.destroy(); }
+
+  std::future<void> future() { return _promise.get_future(); }
 };
