@@ -1,17 +1,19 @@
 #pragma once
+#include <format>
 #include <functional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-template <class T> class Container {
+template <class T, class Name = std::string> class Container {
 private:
   std::vector<T> _items;
-  std::unordered_map<std::string, T *> _indexMap;
+  std::unordered_map<Name, T *> _indexMap;
 
 public:
   Container() = default;
+  
   Container(const Container &) = delete;
 
   Container &operator=(const Container &) = delete;
@@ -20,35 +22,54 @@ public:
     _items.emplace_back(args...);
   }
 
-  template <class... Args>
-  void spawnNamed(const std::string &name, Args... args) {
+  template <class... Args> void spawnNamed(const Name &name, Args... args) {
     if (_indexMap.find(name) != _indexMap.end()) {
-      throw std::runtime_error("Item with name '" + name + "' already exists.");
+      throw std::runtime_error(
+          std::format("Item with name '{}' already exists.", name));
     }
     _items.emplace_back(args...);
     _indexMap[name] = &_items.back();
   }
 
-  T &get(const std::string &name) {
+  template <class... Args>
+  void spawnNamed(const std::function<Name(T &)> &nameFn, Args... args) {
+    T item(args...);
+    Name name = nameFn(item);
+    if (_indexMap.find(name) != _indexMap.end()) {
+      throw std::runtime_error(
+          std::format("Item with name '{}' already exists.", name));
+    }
+    _items.push_back(std::move(item));
+    _indexMap[name] = &_items.back();
+  }
+
+  T &get(const Name &name) {
     auto it = _indexMap.find(name);
     if (it == _indexMap.end()) {
-      throw std::runtime_error("Item with name '" + name + "' not found.");
+      throw std::runtime_error(
+          std::format("Item with name '{}' not found.", name));
     }
     return *(it->second);
   }
 
-  const T &get(const std::string &name) const {
+  const T &get(const Name &name) const {
     auto it = _indexMap.find(name);
     if (it == _indexMap.end()) {
-      throw std::runtime_error("Item with name '" + name + "' not found.");
+      throw std::runtime_error(
+          std::format("Item with name '{}' not found.", name));
     }
     return *(it->second);
   }
 
-  void remove(const std::string &name) {
+  bool has(const Name &name) const {
+    return _indexMap.find(name) != _indexMap.end();
+  }
+
+  void remove(const Name &name) {
     auto it = _indexMap.find(name);
     if (it == _indexMap.end()) {
-      throw std::runtime_error("Item with name '" + name + "' not found.");
+      throw std::runtime_error(
+          std::format("Item with name '{}' not found.", name));
     }
     auto itemIt = std::find(_items.begin(), _items.end(), *(it->second));
     if (itemIt != _items.end()) {
