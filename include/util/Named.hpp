@@ -1,16 +1,11 @@
 #pragma once
-template <unsigned length> struct TString {
-  char value[length + 1]{};
-  constexpr TString(char const *source) {
-    for (unsigned i = 0; i < length; i++) {
-      value[i] = source[i];
-    }
-  }
-  auto operator<=>(const TString &) const = default;
+#include <algorithm>
+template <size_t N> struct TString {
+  constexpr TString(const char (&str)[N]) { std::copy_n(str, N, value); }
+  char value[N];
 };
 template <unsigned length>
 TString(char const (&)[length]) -> TString<length - 1>;
-
 template <TString name, class T> struct Named {
   T value{};
 };
