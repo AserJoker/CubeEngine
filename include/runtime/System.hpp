@@ -8,11 +8,13 @@ private:
   template <class T> std::unique_ptr<T> &inject() {
     return Singleton<T>::get();
   }
+
   template <class T>
     requires requires(T t) { T::template inject<T>(); }
   std::unique_ptr<T> &inject() {
     return T::template inject<T>();
   }
+
   auto autoInject(const std::function<void(std::unique_ptr<Args> &...)> &fn) {
     return [fn, this]() -> bool {
       fn(inject<Args>()...);

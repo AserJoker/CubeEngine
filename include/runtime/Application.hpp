@@ -3,13 +3,12 @@
 #include "runtime/System.hpp"
 #include "util/Singleton.hpp"
 #include "util/TaskRunner.hpp"
-#include <map>
 #include <string>
 #include <vector>
 class Application {
 private:
   std::vector<std::string> _args;
-  std::map<std::string, IModule *> _modules;
+  std::vector<IModule *> _modules;
 
 public:
   auto addSystem(auto &&fn) {
@@ -18,8 +17,13 @@ public:
     return this;
   }
 
-  template <class T> auto addModule(T *module) {
-    _modules.insert(typeid(T).name(), module);
+  template <class T> auto addModule() {
+    auto &module = Singleton<T>::get();
+    auto it = std::find(_modules.begin(), _modules.end(), module.get());
+    if (it != _modules.end()) {
+      return this;
+    }
+    _modules.push_back(module.get());
     return this;
   }
 
