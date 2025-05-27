@@ -17,12 +17,13 @@ public:
     return this;
   }
 
-  template <class T> auto addModule() {
+  template <class T, class... Args> auto addModule(Args... args) {
     auto &module = Singleton<T>::get();
     auto it = std::find(_modules.begin(), _modules.end(), module.get());
     if (it != _modules.end()) {
       return this;
     }
+    module->initialize(args...);
     _modules.push_back(module.get());
     return this;
   }

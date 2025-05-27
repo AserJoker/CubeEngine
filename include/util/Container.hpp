@@ -1,19 +1,19 @@
 #pragma once
 #include <format>
 #include <functional>
+#include <list>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 template <class T, class Name = std::string> class Container {
 private:
-  std::vector<T> _items;
+  std::list<T> _items;
   std::unordered_map<Name, T *> _indexMap;
 
 public:
   Container() = default;
-  
+
   Container(const Container &) = delete;
 
   Container &operator=(const Container &) = delete;
@@ -22,17 +22,18 @@ public:
     _items.emplace_back(args...);
   }
 
-  template <class... Args> void spawnNamed(const Name &name, Args... args) {
+  template <class... Args> T &spawnNamed(const Name &name, Args... args) {
     if (_indexMap.find(name) != _indexMap.end()) {
       throw std::runtime_error(
           std::format("Item with name '{}' already exists.", name));
     }
     _items.emplace_back(args...);
     _indexMap[name] = &_items.back();
+    return _items.back();
   }
 
   template <class... Args>
-  void spawnNamed(const std::function<Name(T &)> &nameFn, Args... args) {
+  T &spawnNamed(const std::function<Name(T &)> &nameFn, Args... args) {
     T item(args...);
     Name name = nameFn(item);
     if (_indexMap.find(name) != _indexMap.end()) {
@@ -41,6 +42,7 @@ public:
     }
     _items.push_back(std::move(item));
     _indexMap[name] = &_items.back();
+    return _items.back();
   }
 
   T &get(const Name &name) {
@@ -71,16 +73,18 @@ public:
       throw std::runtime_error(
           std::format("Item with name '{}' not found.", name));
     }
-    auto itemIt = std::find(_items.begin(), _items.end(), *(it->second));
-    if (itemIt != _items.end()) {
-      _items.erase(itemIt);
+    for (auto itemIt = _items.begin(); itemIt != _items.end(); itemIt++) {
+      if (*itemIt == *(it->second)) {
+        _items.erase(itemIt);
+        break;
+      }
     }
     _indexMap.erase(it);
   }
 
-  std::vector<T> &getAll() { return _items; }
+  std::list<T> &getAll() { return _items; }
 
-  const std::vector<T> &getAll() const { return _items; }
+  const std::list<T> &getAll() const { return _items; }
 
   size_t size() const { return _items.size(); }
 

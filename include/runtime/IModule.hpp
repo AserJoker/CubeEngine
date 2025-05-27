@@ -5,4 +5,5 @@ class IModule : public Interface {
 public:
   virtual void setup(Application *) = 0;
   virtual void cleanup() = 0;
+  virtual void initialize() {};
 };

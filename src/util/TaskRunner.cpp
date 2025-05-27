@@ -27,8 +27,12 @@ bool TaskRunner::runSafeTask() {
   }
   return _tasks.empty();
 }
+
 void TaskRunner::runTaskLoop() {
-  while (!_tasks.empty()) {
+  _running = true;
+  while (!_tasks.empty() && _running) {
     runSafeTask();
   }
 }
+
+void TaskRunner::stop() { _running = false; }

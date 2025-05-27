@@ -1,33 +1,47 @@
 #include "module/window/WindowModule.hpp"
 #include "module/window/Window.hpp"
+#include "module/window/WindowCloseEvent.hpp"
 #include "runtime/Application.hpp"
-#include "util/Container.hpp"
+#include "util/EventQueue.hpp"
+#include "util/Singleton.hpp"
+#include "util/TaskRunner.hpp"
 #include <SDL3/SDL.h>
+#include <format>
 #include <stdexcept>
 
-SDL_WindowID getWindowID(Window &window) {
-  return SDL_GetWindowID(window.getSDLWindow());
+static bool onWindowClose(EventQueue *queue) {
+  auto &windows = Window::getWindows();
+  if (queue->hasEvent() &&
+      queue->peekEvent()->getType() == std::string("WindowClose")) {
+    auto event = queue->pollEvent();
+    auto windowCloseEvent = (WindowCloseEvent *)event.get();
+    if (windows.contains(windowCloseEvent->getWindowId())) {
+      auto win = windows.at(windowCloseEvent->getWindowId());
+      win->dispose();
+    }
+  }
+  if (windows.empty()) {
+    queue->pushEvent<QuitEvent>();
+    return true;
+  }
+  return false;
+}
+static bool onQuitEvent(EventQueue *queue) {
+  if (queue->hasEvent() &&
+      queue->peekEvent()->getType() == std::string("Quit")) {
+    auto &runner = Singleton<TaskRunner>::get();
+    runner->stop();
+  }
+  return false;
 }
 
-static void createMainWindow(std::unique_ptr<WindowContainer> &windows) {
-  windows->spawnNamed(getWindowID, "Cube", 1024, 768);
-}
-
-static bool EventLoop(std::unique_ptr<WindowContainer> &windows) {
-  SDL_Event event;
+static bool runEventLoop(EventQueue *queue) {
+  auto &windows = Window::getWindows();
+  SDL_Event event = {};
   if (SDL_PollEvent(&event)) {
     switch (event.type) {
-    case SDL_EVENT_QUIT:
-      return true;
     case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
-      if (windows->has(event.window.windowID)) {
-        auto &win = windows->get(event.window.windowID);
-        SDL_DestroyWindow(win.getSDLWindow());
-        windows->remove(event.window.windowID);
-      }
-      if (windows->getAll().empty()) {
-        return true; // Exit if no windows left
-      }
+      queue->pushEvent<WindowCloseEvent>(event.window.windowID);
       break;
     }
     default:
@@ -39,11 +53,33 @@ static bool EventLoop(std::unique_ptr<WindowContainer> &windows) {
 
 void WindowModule::setup(Application *app) {
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
-    throw std::runtime_error("Failed to initialize SDL: " +
-                             std::string(SDL_GetError()));
+    throw std::runtime_error(
+        std::format("Failed to initialize SDL: {}", SDL_GetError()));
   }
-  app->addSystem(createMainWindow);
-  app->addSystem(EventLoop);
+  for (auto &[attr, val] : _config.glAttributes) {
+    if (!SDL_GL_SetAttribute(attr, val)) {
+      throw std::runtime_error(
+          std::format("Failed to set OpenGL Attribute: {}", SDL_GetError()));
+    }
+  }
+  auto &win = Singleton<MainWindow>::get();
+  win->create(_config.title, _config.width, _config.height, _config.flags);
+  app->addSystem(onQuitEvent);
+  app->addSystem(onWindowClose);
+  app->addSystem(runEventLoop);
 }
 
 void WindowModule::cleanup() { SDL_Quit(); }
+
+void WindowModule::initialize(const Config &config) {
+  _config = config;
+  if (_config.title.empty()) {
+    _config.title = "Cube";
+  }
+  if (_config.width == 0) {
+    _config.width = 1024;
+  }
+  if (_config.height == 0) {
+    _config.height = 768;
+  }
+}
