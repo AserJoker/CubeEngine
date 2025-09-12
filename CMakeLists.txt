@@ -1,0 +1,40 @@
+cmake_minimum_required(VERSION 3.12)
+
+if(MSVC)
+    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/execution_charset:utf-8>")
+    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/source_charset:utf-8>")
+endif()
+
+if(WIN32)
+    set(VCPKG_TARGET_TRIPLET x64-windows)
+else()
+    set(VCPKG_TARGET_TRIPLET x64-linux)
+endif()
+
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+
+set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}\\scripts\\buildsystems\\vcpkg.cmake)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+project(cube)
+set(CMAKE_CXX_STANDARD 23)
+include_directories(${CMAKE_SOURCE_DIR}/include)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+add_definitions(-DAPP_NAME="${PROJECT_NAME}")
+add_definitions(-DAPP_VERSION="0.1.0-alpha")
+add_definitions(-DAPP_ID="")
+
+add_executable(${PROJECT_NAME} ${SOURCES})
+
+find_package(SDL3 CONFIG REQUIRED)
+find_package(SDL3_image CONFIG REQUIRED)
+find_package(SDL3_ttf CONFIG REQUIRED)
+find_package(tomlplusplus CONFIG REQUIRED)
+find_package(cJSON CONFIG REQUIRED)
+find_package(qjs CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+target_link_libraries(${PROJECT_NAME} PRIVATE $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-shared>,SDL3_image::SDL3_image-shared,SDL3_image::SDL3_image-static>)
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL3_ttf::SDL3_ttf)
+target_link_libraries(${PROJECT_NAME} PRIVATE tomlplusplus::tomlplusplus)
+target_link_libraries(${PROJECT_NAME} PRIVATE cjson)
+target_link_libraries(${PROJECT_NAME} PRIVATE qjs)

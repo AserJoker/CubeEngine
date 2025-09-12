@@ -1,0 +1,10 @@
+.cache
+build
+*.dll
+*.so
+*.exe
+configs
+saves
+logs
+*.pdb
+.history
