@@ -1,16 +1,22 @@
 #include "runtime/ResourceManager.hpp"
 #include "core/Buffer.hpp"
+#include "core/JsonLoader.hpp"
+#include "core/LangLoader.hpp"
 #include "core/Object.hpp"
+#include "core/TomlLoader.hpp"
 #include <exception>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <vector>
 
-
 using namespace cube;
 using namespace cube::runtime;
-
+ResourceManager::ResourceManager() {
+  _loaders[".toml"] = std::make_shared<core::TomlLoader>();
+  _loaders[".json"] = std::make_shared<core::JsonLoader>();
+  _loaders[".lang"] = std::make_shared<core::LangLoader>();
+}
 void ResourceManager::setDomain(const std::string &name,
                                 const std::string &path) {
   if (path.ends_with("/")) {
@@ -41,6 +47,19 @@ ResourceManager::load(const std::string &domain,
                    path);
     return nullptr;
   }
+  std::filesystem::path p = path;
+  if (p.has_extension() && _loaders.contains(p.extension().string())) {
+    auto type = p.extension().string();
+    auto &loader = _loaders.at(type);
+    try {
+      return loader->resolve(fullpath);
+    } catch (std::exception &e) {
+      _logger->error("Failed to load '{}:{}': {}", domain, path, e.what());
+    } catch (...) {
+      _logger->error("Failed to load '{}:{}': unknown exception", domain, path);
+    }
+    return nullptr;
+  }
   std::ifstream file(fullpath);
   if (!file.is_open()) {
     _logger->error("Failed to load resource '{}:{}': invalid file", domain,
@@ -53,21 +72,6 @@ ResourceManager::load(const std::string &domain,
   std::shared_ptr<core::Buffer> buf = std::make_shared<core::Buffer>(size);
   file.read((char *)buf->getData(), size);
   file.close();
-  std::filesystem::path p = path;
-  if (!p.has_extension()) {
-    return buf;
-  }
-  auto type = p.extension().string();
-  if (_loaders.contains(type)) {
-    try {
-      return _loaders.at(type)->resolve(buf.get());
-    } catch (std::exception &e) {
-      _logger->error("Failed to load '{}:{}': {}", domain, path, e.what());
-    } catch (...) {
-      _logger->error("Failed to load '{}:{}': unknown exception", domain, path);
-    }
-    return nullptr;
-  }
   return buf;
 }
 bool ResourceManager::save(const std::string &domain, const std::string &path,

@@ -16,13 +16,12 @@ core::Variable &ConfigManager::query(const std::string &name) {
   std::string path = name.substr(pos + 1);
   auto app = core::Singleton<Application>::get();
   if (!_configs.contains(name)) {
-    auto src = std::dynamic_pointer_cast<core::Buffer>(_resource->load(
+    auto src = std::dynamic_pointer_cast<core::Variable>(_resource->load(
         app->getApplicationName(), std::format("configs/{}/{}", domain, path)));
-    _configs[name] = {};
+    _configs[name] = std::make_shared<core::Variable>();
     if (src) {
-      std::string source((const char *)src->getData(), src->getSize());
       try {
-        _configs[name].parseToml(source, path);
+        _configs[name] = src;
       } catch (std::exception &error) {
         _logger->error("Failed to load config '{}' :{}", name, error.what());
       } catch (...) {
@@ -30,7 +29,7 @@ core::Variable &ConfigManager::query(const std::string &name) {
       }
     }
   }
-  return _configs[name];
+  return *_configs[name];
 }
 
 bool ConfigManager::save(const std::string &name) {
@@ -44,7 +43,7 @@ bool ConfigManager::save(const std::string &name) {
   std::shared_ptr<core::Buffer> buf;
   if (_configs.contains(name)) {
     auto &cfg = _configs.at(name);
-    auto src = cfg.toToml();
+    auto src = cfg->toToml();
     buf = std::make_shared<core::Buffer>(src.size(), src.data());
   }
   auto app = core::Singleton<Application>::get();

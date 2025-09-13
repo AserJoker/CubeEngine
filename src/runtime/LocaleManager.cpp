@@ -1,47 +1,23 @@
 #include "runtime/LocaleManager.hpp"
-#include "core/Buffer.hpp"
+#include "core/Variable.hpp"
 #include <memory>
-#include <sstream>
 #include <string>
 using namespace cube;
 using namespace cube::runtime;
 
 bool parse(std::shared_ptr<AssetManager> asset, const std::string &file,
            std::unordered_map<std::string, std::string> &locales) {
-  auto buf = std::dynamic_pointer_cast<core::Buffer>(asset->query(file));
-  if (!buf) {
+  auto lang = std::dynamic_pointer_cast<core::Variable>(asset->query(file));
+  if (!lang) {
     return false;
   }
-  std::string source((const char *)buf->getData(), buf->getSize());
-  std::stringstream ss(source);
-  std::string line;
-  while (std::getline(ss, line)) {
-    for (auto &ch : line) {
-      if (ch == '\t') {
-        ch = ' ';
-      }
+  if (!lang->isTable()) {
+    return false;
+  }
+  for (auto &[k, v] : lang->getTable()) {
+    if (v.isString()) {
+      locales[k] = v.getString();
     }
-    line.erase(0, line.find_first_not_of(' '));
-    line.erase(line.find_last_not_of(' ') + 1);
-    size_t pos = line.find('#');
-    if (pos != std::string::npos) {
-      line = line.substr(0, pos);
-    }
-    if (line.empty()) {
-      continue;
-    }
-    pos = line.find('=');
-    if (pos == std::string::npos) {
-      return false;
-    }
-    std::string name = line.substr(0, pos);
-    std::string value = line.substr(pos + 1);
-    name.erase(name.find_last_not_of(' ') + 1);
-    value.erase(0, value.find_first_not_of(' '));
-    if (value[0] == '"') {
-      value = value.substr(1, value.length() - 2);
-    }
-    locales[name] = value;
   }
   return true;
 }

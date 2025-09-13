@@ -1,20 +1,22 @@
 #pragma once
-#include "Loader.hpp"
 #include "core/Buffer.hpp"
+#include "core/Loader.hpp"
 #include "core/Object.hpp"
 #include "runtime/Logger.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
 namespace cube::runtime {
 class ResourceManager : public core::Object {
 private:
-  std::unordered_map<std::string, std::shared_ptr<Loader>> _loaders;
+  std::unordered_map<std::string, std::shared_ptr<core::Loader>> _loaders;
   std::unordered_map<std::string, std::string> _domains;
   Logger *_logger = Logger::getLogger("ResourceManager");
 
 public:
+  ResourceManager();
   void setDomain(const std::string &name, const std::string &path);
   const std::string &getDomain(const std::string &name,
                                const std::string &def = "./") const;

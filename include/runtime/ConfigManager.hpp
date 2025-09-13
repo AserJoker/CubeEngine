@@ -15,7 +15,7 @@ private:
       core::Singleton<ResourceManager>::get();
   Logger *_logger = Logger::getLogger("ConfigManager");
 
-  std::unordered_map<std::string, core::Variable> _configs;
+  std::unordered_map<std::string, std::shared_ptr<core::Variable>> _configs;
   core::Variable _nil;
 
 public:

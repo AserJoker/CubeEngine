@@ -1,5 +1,4 @@
 #include "runtime/ModManager.hpp"
-#include "core/Buffer.hpp"
 #include "core/Singleton.hpp"
 #include "core/Variable.hpp"
 #include "runtime/Application.hpp"
@@ -31,41 +30,39 @@ void ModManager::scanManifests() {
   }
   for (auto &item : std::filesystem::directory_iterator(root)) {
     auto dirname = item.path().filename().string();
-    auto manifest = std::format("mods/{}/manifest.json", dirname);
-    auto buf = std::dynamic_pointer_cast<core::Buffer>(
-        _resource->load(app->getApplicationName(), manifest));
-    if (buf) {
-      std::string source((const char *)buf->getData(), buf->getSize());
-      core::Variable val;
+    auto manifestName = std::format("mods/{}/manifest.json", dirname);
+    auto manifestJson = std::dynamic_pointer_cast<core::Variable>(
+        _resource->load(app->getApplicationName(), manifestName));
+    if (manifestJson) {
       try {
-        val.parseJson(source, dirname);
-        if (!val.getField("name").isString() ||
-            val.getField("name").getString().empty()) {
+        if (!manifestJson->getField("name").isString() ||
+            manifestJson->getField("name").getString().empty()) {
           throw std::runtime_error(
               "invalid manifest, field 'name' is required");
         }
-        auto name = val.getField("name").getString();
+        auto name = manifestJson->getField("name").getString();
         auto &manifest = _mods[name];
-        manifest.name = val.getField("name").getString();
+        manifest.name = manifestJson->getField("name").getString();
         manifest.path = std::format("mods/{}/", dirname);
         manifest.displayName =
-            val.getField("displayName").getString(manifest.name);
-        manifest.version = val.getField("version").getString("0.1.0-unknown");
+            manifestJson->getField("displayName").getString(manifest.name);
+        manifest.version =
+            manifestJson->getField("version").getString("0.1.0-unknown");
         if (manifest.version.ext == "error") {
           throw std::runtime_error(
               "invalid manifest, field 'version' is malformed");
         }
-        manifest.author = val.getField("author").getString();
-        manifest.license = val.getField("license").getString();
-        manifest.icon = val.getField("icon").getString();
-        manifest.engine = val.getField("engine").getString("0.1.0");
+        manifest.author = manifestJson->getField("author").getString();
+        manifest.license = manifestJson->getField("license").getString();
+        manifest.icon = manifestJson->getField("icon").getString();
+        manifest.engine = manifestJson->getField("engine").getString("0.1.0");
         if (manifest.engine.ext == "error") {
           throw std::runtime_error(
               "invalid manifest, field 'engine' is malformed");
         }
-        if (val.hasField("dependences") &&
-            val.getField("dependences").isTable()) {
-          auto &dependences = val.getField("dependences").getTable();
+        if (manifestJson->hasField("dependences") &&
+            manifestJson->getField("dependences").isTable()) {
+          auto &dependences = manifestJson->getField("dependences").getTable();
           for (auto &[dep, version] : dependences) {
             manifest.dependences[dep] = version.getString();
             if (manifest.dependences[dep].ext == "error") {
@@ -74,8 +71,9 @@ void ModManager::scanManifests() {
             }
           }
         }
-        if (val.hasField("locales") && val.getField("locales").isTable()) {
-          auto &locales = val.getField("locales").getTable();
+        if (manifestJson->hasField("locales") &&
+            manifestJson->getField("locales").isTable()) {
+          auto &locales = manifestJson->getField("locales").getTable();
           for (auto &[lang, file] : locales) {
             manifest.locales[lang] = file.getString();
           }
