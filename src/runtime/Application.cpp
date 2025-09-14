@@ -4,9 +4,12 @@
 #include "runtime/ModManager.hpp"
 #include "runtime/ResourceManager.hpp"
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_video.h>
 #include <exception>
 #include <memory>
+#include <stdexcept>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -22,6 +25,11 @@ Application::Application() {
   _asset = core::Singleton<AssetManager>::get();
   _locale = core::Singleton<LocaleManager>::get();
   _mod = core::Singleton<ModManager>::get();
+  SDL_SetLogOutputFunction(runtime::Logger::print, nullptr);
+  if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
+    throw std::runtime_error(
+        std::format("Failed to initialize sdl3: {}", SDL_GetError()));
+  }
 }
 void Application::initOptions(int argc, char *argv[]) {
   int idx = 1;
@@ -42,7 +50,6 @@ void Application::initOptions(int argc, char *argv[]) {
 }
 
 void Application::initLogger() {
-  SDL_SetLogOutputFunction(runtime::Logger::print, nullptr);
   auto &cfg = _config->query(std::format("{}:application.toml", _appname));
   auto &log = cfg.get("log");
   runtime::Logger::setPriorities(log.get("priority").getString("debug"));
@@ -101,31 +108,28 @@ int Application::run(int argc, char *argv[]) {
       _logger->error("Invalid application version: {}", _appversion);
       return -1;
     }
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
-      _logger->error("Failed to initialize sdl3: {}", SDL_GetError());
-      return -1;
-    }
-    _window = SDL_CreateWindow(_locale->i18n("system.window.title").c_str(),
-                               1024, 768, 0);
-    if (!_window) {
-      _logger->error("Failed to create window: {}", SDL_GetError());
-      return -1;
-    }
     _mod->load();
     _locale->setLanguage(_locale->getLanguage());
-
-    SDL_SetWindowTitle(_window, _locale->i18n("system.window.title").c_str());
     _running = true;
     while (_running) {
       SDL_Event event;
-      if (SDL_PollEvent(&event)) {
+      while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
           _running = false;
-        } else if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
-          _running = false;
+        } else if (event.type >= SDL_EVENT_WINDOW_FIRST &&
+                   event.type <= SDL_EVENT_WINDOW_LAST) {
+          auto winId = event.window.windowID;
+          if (_windows.contains(winId)) {
+            auto window = _windows.at(winId);
+            window->onWindowEvent(event.window);
+            if (window->getWindow() == nullptr) {
+              _windows.erase(winId);
+            }
+          }
         }
-      } else {
-        SDL_Delay(4);
+        for (auto &[_, win] : _windows) {
+          win->onUpdate();
+        }
       }
     }
     return 0;
@@ -136,13 +140,9 @@ int Application::run(int argc, char *argv[]) {
 }
 
 Application::~Application() {
-  if (_window) {
-    SDL_DestroyWindow(_window);
-  }
+  _windows.clear();
   SDL_Quit();
 }
-
-const SDL_Window *Application::getWindow() const { return _window; }
 
 const char *Application::getBasePath() const { return SDL_GetBasePath(); }
 
@@ -158,4 +158,23 @@ const std::string &Application::getApplicationName() const { return _appname; }
 
 const core::Version &Application::getApplicationVersion() const {
   return _version;
+}
+Application *Application::addWindow(const std::shared_ptr<Window> &window) {
+  if (!_windows.contains(window->getWindowID())) {
+    _windows[window->getWindowID()] = window;
+  }
+  return this;
+}
+bool Application::removeWindow(SDL_WindowID id) {
+  if (_windows.contains(id)) {
+    _windows.erase(id);
+    return true;
+  }
+  return false;
+}
+std::shared_ptr<Window> Application::getWindow(SDL_WindowID id) const {
+  if (_windows.contains(id)) {
+    return _windows.at(id);
+  }
+  return nullptr;
 }

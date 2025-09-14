@@ -1,6 +1,7 @@
 #pragma once
 #include "ConfigManager.hpp"
 #include "LocaleManager.hpp"
+#include "Window.hpp"
 #include "core/Object.hpp"
 #include "core/Version.hpp"
 #include "runtime/AssetManager.hpp"
@@ -8,6 +9,7 @@
 #include "runtime/ModManager.hpp"
 #include "runtime/ResourceManager.hpp"
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_video.h>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -18,7 +20,7 @@ class Application : public core::Object {
 private:
   std::unordered_map<std::string, std::string> _options;
   runtime::Logger *_logger = runtime::Logger::getLogger("Application");
-  SDL_Window *_window = nullptr;
+  std::unordered_map<SDL_WindowID, std::shared_ptr<Window>> _windows;
   bool _running = false;
   std::shared_ptr<ResourceManager> _resource;
   std::shared_ptr<ConfigManager> _config;
@@ -44,7 +46,6 @@ public:
   const std::string &getOption(const std::string &name,
                                const std::string &def = "") const;
   int run(int argc, char *argv[]);
-  const SDL_Window *getWindow() const;
   ~Application() override;
   const char *getBasePath() const;
   Application *setApplicationInfo(const std::string &appname,
@@ -52,5 +53,8 @@ public:
                                   const std::string &appid);
   const std::string &getApplicationName() const;
   const core::Version &getApplicationVersion() const;
+  Application *addWindow(const std::shared_ptr<Window> &window);
+  bool removeWindow(SDL_WindowID id);
+  std::shared_ptr<Window> getWindow(SDL_WindowID id) const;
 };
 }; // namespace cube::runtime
