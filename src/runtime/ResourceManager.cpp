@@ -1,5 +1,6 @@
 #include "runtime/ResourceManager.hpp"
 #include "core/Buffer.hpp"
+#include "core/ImageLoader.hpp"
 #include "core/JsonLoader.hpp"
 #include "core/LangLoader.hpp"
 #include "core/Object.hpp"
@@ -16,6 +17,14 @@ ResourceManager::ResourceManager() {
   _loaders[".toml"] = std::make_shared<core::TomlLoader>();
   _loaders[".json"] = std::make_shared<core::JsonLoader>();
   _loaders[".lang"] = std::make_shared<core::LangLoader>();
+  auto imgLoader = std::make_shared<core::ImageLoader>();
+  _loaders[".jpg"] = imgLoader;
+  _loaders[".jpeg"] = imgLoader;
+  _loaders[".png"] = imgLoader;
+  _loaders[".bmp"] = imgLoader;
+  _loaders[".tga"] = imgLoader;
+  _loaders[".gif"] = imgLoader;
+  _loaders[".webp"] = imgLoader;
 }
 void ResourceManager::setDomain(const std::string &name,
                                 const std::string &path) {
