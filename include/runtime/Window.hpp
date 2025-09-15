@@ -13,7 +13,8 @@ public:
   ~Window() override;
   SDL_Window *getWindow() const;
   SDL_WindowID getWindowID() const;
-  virtual void onWindowEvent(const SDL_WindowEvent &event);
+  bool isActive() const;
+  virtual void onEvent(const SDL_Event &event);
   virtual void onUpdate();
 };
 } // namespace cube::runtime

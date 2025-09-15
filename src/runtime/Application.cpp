@@ -3,6 +3,7 @@
 #include "runtime/Logger.hpp"
 #include "runtime/ModManager.hpp"
 #include "runtime/ResourceManager.hpp"
+#include "runtime/Window.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_oldnames.h>
@@ -121,9 +122,16 @@ int Application::run(int argc, char *argv[]) {
           auto winId = event.window.windowID;
           if (_windows.contains(winId)) {
             auto window = _windows.at(winId);
-            window->onWindowEvent(event.window);
+            window->onEvent(event);
             if (window->getWindow() == nullptr) {
               _windows.erase(winId);
+            }
+          }
+        } else {
+          for (auto &[_, win] : _windows) {
+            if (win->isActive()) {
+              win->onEvent(event);
+              break;
             }
           }
         }
