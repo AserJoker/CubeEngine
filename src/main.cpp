@@ -1,13 +1,13 @@
 #include "core/Singleton.hpp"
 #include "runtime/Application.hpp"
-#include "runtime/GUIWindow.hpp"
 #include "runtime/Window.hpp"
 #include <SDL3/SDL_events.h>
+#include <memory>
 
 using namespace cube;
 class MainWindow : public runtime::Window {
 public:
-  MainWindow() : runtime::Window("Cube Engine", 800, 600) {}
+  MainWindow() : runtime::Window("Cube Engine", 1024, 768) {}
   void onEvent(const SDL_Event &event) override {
     if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
       SDL_QuitEvent e = {
@@ -24,8 +24,6 @@ auto main(int argc, char *argv[]) -> int {
     return core::Singleton<runtime::Application>::get()
         ->setApplicationInfo(APP_NAME, APP_VERSION, APP_ID)
         ->addWindow(std::make_shared<MainWindow>())
-        ->addWindow(
-            std::make_shared<runtime::GUIWindow>("Debug Window", 1024, 768))
         ->run(argc, argv);
   } catch (std::exception &e) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", e.what());
